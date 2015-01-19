@@ -1,15 +1,13 @@
 <?php
 
-// $Id$
-
 /**
  * @file
  *  Link general privatemsg module functionalities to services module.
  */
+
 /**
  * Implementation of hook_perm().
  */
-
 function privatemsg_services_permission() {
   return array(
     'get private messages from remote'  => array(
@@ -26,7 +24,6 @@ function privatemsg_services_permission() {
 /**
  * Implementation of hook_service().
  */
-
 function privatemsg_services_services_resources() {
   return array(
     'privatemsg' => array(
@@ -81,56 +78,49 @@ function privatemsg_services_access(){
 /**
  * Get all of the logged in user's private messages.
  *
- * @param $type
- * String. Which type of messages you would like to retrieve.
- * Possibilities are inbox or sent.
- *
- * @param $load_full
- * Boolean. Whether to load the full message for each message or not.
- *
- * @param $offset
- *   Integer (optional). An offset integer for paging.
- * @param $limit
- *   Integer (optional). A limit integer for paging.
+ * @param string $type
+ *   Which type of messages you would like to retrieve: inbox or sent.
+ * @param boolean $load_full
+ *   Whether to load the full message for each message or not.
+ * @param int $offset
+ *   An offset integer for paging. Optional.
+ * @param int $limit
+ *   A limit integer for paging. Optional.
  *
  * @return
  *   An array of messages.
- *
  */
-
 function privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0){
   $messages = array();
-  $pms = array();
 
   // If no type passed set default type to inbox.
-
-  if (!$type) {
+  if (empty($type)) {
     $type = 'inbox';
   }
 
   // User needs to be authenticated to proceed.
-
   global $user;
   if (!user_is_logged_in()) {
     return services_error(t('This user is not logged in.') , 403);
   }
-
-  // Use the current user for the account.
-
   else {
+    // Use the current user for the account.
     $account = $user;
   }
 
   // Construct the query and retrieve the correct set of messages.
-
-  $query = db_query(_privatemsg_assemble_query('list', $account, '')->execute());
+  $query = db_query(_privatemsg_assemble_query('list', $account, '')
+    ->execute());
   foreach($query as $thread_id => $msg) {
     $participants = privatemsg_thread_load($msg->thread_id);
     $participants = $participants['participants'];
     $parts = array();
     foreach($participants as $participant => $usr_obj) {
       $participant_id = substr($participant, 5);
-      $org_name = profile2_load_by_user($participant_id, $type_name = 'exhibitor')->field_profile['und'][0]['organisation_name'];
+      $org_name =
+        profile2_load_by_user($participant_id, $type_name = 'exhibitor')
+        ->field_profile['und'][0]['organisation_name']
+      ;
       if ($org_name) {
         $parts[] = $participant_id . ',' . $org_name;
       }
@@ -141,7 +131,6 @@ function privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0){
   }
 
   // Return messages.
-
   return $messages;
 }
 
@@ -151,11 +140,8 @@ function privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0){
  * @return
  *   The unread count.
  */
-
 function privatemsg_services_unread_count($uid = ''){
-
   // User needs to be authenticated to proceed.
-
   global $user;
   if (!user_is_logged_in()) {
     return services_error(t('This user is not logged in.') , 403);
@@ -164,44 +150,41 @@ function privatemsg_services_unread_count($uid = ''){
   // If a user id other than the current user's ID is passed,
   // validate that the authenticated user has the correct
   // permissions to read another user's messages.
-
   if (is_numeric($uid) && ($uid != $user->uid)) {
     if (user_access("read all private messages")) {
       $account = user_load($uid);
     }
     else {
-      return services_error(t('This user does not have permissions to use this service.') , 403);
+      return services_error(
+        t('This user does not have permissions to use this service.'),
+        403
+      );
     }
   }
 
   // Use the current user for the account.
-
   else {
     $account = $user;
   }
 
   // Return unread count.
-
   return privatemsg_unread_count($account);
 }
 
 /**
  * Send a private message to one or more recipients.
  *
- * @param $recipients
- * String. A comma separated list of usernames for recipients of the message.
- *
- * @param $subject
- * String. A message subject
- *
- * @param $body
- * String. A message body
- *
- * @param $thread_id
- * Integer. A thread ID. pass this parameter if you are sending a message reply.
+ * @param string $recipients
+ *   A comma separated list of usernames for recipients of the message.
+ * @param string $subject
+ *   A message subject
+ * @param string $body
+ *   A message body
+ * @param int $thread_id
+ *   A thread ID. pass this parameter if you are sending a message reply.
  *
  * @return
- * Boolean. Return TRUE if sending the message was successful.
+ *   Boolean. Return TRUE if sending the message was successful.
  */
 
 function privatemsg_services_send(array $message){
@@ -210,8 +193,8 @@ function privatemsg_services_send(array $message){
   $recipients=$message['recipients'];
   $thread_id = $message['thread_id'];
   $form_state = array();
-  // Make sure the message author is logged in.
 
+  // Make sure the message author is logged in.
   global $user;
   $account = user_load($user->uid);
   if (!user_is_logged_in()) {
@@ -221,22 +204,25 @@ function privatemsg_services_send(array $message){
   // Validate at least 1 recipient has been passed in.
 
   if ($recipients == '' && !$thread_id) {
-    return services_error(t('There are no recipients, please enter a recipient for the message.') , 400);
+    return services_error(
+      t('There are no recipients, please enter a recipient for the message.'),
+      400
+    );
   }
   elseif (!$thread_id) {
-
     // No thread ID - we are sending a new message.
     // Convert the recipients string to an array of user objects.
-
     list($recipients, $invalid) = _privatemsg_parse_userstring($recipients);
     if (!empty($invalid)) {
 
       // At least one of the recipients could not be found.
-
       $invalid_usernames = array(
         '@names' => implode(', ', $invalid)
       );
-      return services_error(t('One or more usernames are invalid: @names', $invalid_usernames) , 400);
+      return services_error(
+        t('One or more usernames are invalid: @names', $invalid_usernames),
+        400
+      );
     }
 
     $result = privatemsg_new_thread($recipients, $subject, $body, array(
@@ -250,9 +236,7 @@ function privatemsg_services_send(array $message){
     }
   }
   else {
-
     // There is a thread id so we are sending a reply.
-
     $result = privatemsg_reply($thread_id, $body, array(
       'author' => $account
     ));
@@ -260,15 +244,11 @@ function privatemsg_services_send(array $message){
       return TRUE;
     }
     elseif (!empty($result[0])) {
-
       // If $result[0] this means the thread could not be loaded.
-
       return services_error($result[0], 404);
     }
     else {
-
-      // Rlse there was some other problem.
-
+      // Else there was some other problem.
       return services_error(implode("\n", $result['messages']['error']) , 400);
     }
   }
@@ -281,6 +261,7 @@ function privatemsg_services_send(array $message){
  *   ID of the thread to be loaded.
  * @param <int> $offset
  *   Optional: Message offset from the start of the thread.
+ *
  * @return
  *   An array of messages in a thread.
  */
@@ -302,10 +283,18 @@ function privatemsg_services_get_thread($thread_id, $offset = 0){
   }
 
   // Return the full thread.
-
   return privatemsg_services_thread_load($thread_id, $account, $offset);
 }
 
+/**
+ * Get all messages in a thread.
+ *
+ * @param <int> $pmtid
+ *   ID of the thread to be loaded.
+ *
+ * @return
+ *   An array of messages in a thread.
+ */
 function privatemsg_services_thread_load($pmtid){
   $thread = privatemsg_thread_load($pmtid);
 
@@ -327,5 +316,6 @@ function privatemsg_services_thread_load($pmtid){
       'is_new' => $message->is_new
     );
   }
+
   return $result;
 }
