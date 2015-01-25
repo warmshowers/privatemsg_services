@@ -1,5 +1,9 @@
-A Drupal 7 module to integrate [PrivateMSG](https://www.drupal.org/project/privatemsg) functionality with
-[Services](https://www.drupal.org/project/services).
+A Drupal 7 module to integrate PrivateMSG functionality with Services.
+
+# References
+
+* [PrivateMSG](https://www.drupal.org/project/privatemsg).
+* [Services](https://www.drupal.org/project/services).
 
 # Credits
 
