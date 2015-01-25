@@ -98,7 +98,7 @@ function _privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0) {
   // User needs to be authenticated to proceed.
   global $user;
   if (!user_is_logged_in()) {
-    return services_error(t('This user is not logged in.') , 403);
+    return services_error(t('This user is not logged in.'), 403);
   }
   else {
     // Use the current user for the account.
@@ -108,7 +108,7 @@ function _privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0) {
   // Construct the query and retrieve the correct set of messages.
   $query = db_query(_privatemsg_assemble_query('list', $account, '')
     ->execute());
-  foreach($query as $msg) {
+  foreach ($query as $msg) {
     $participants = privatemsg_thread_load($msg->thread_id);
     $msg->participants = $participants['participants'];
 
