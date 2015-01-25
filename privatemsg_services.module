@@ -93,11 +93,6 @@ function privatemsg_services_access(){
 function privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0){
   $messages = array();
 
-  // If no type passed set default type to inbox.
-  if (empty($type)) {
-    $type = 'inbox';
-  }
-
   // User needs to be authenticated to proceed.
   global $user;
   if (!user_is_logged_in()) {
@@ -111,7 +106,7 @@ function privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0){
   // Construct the query and retrieve the correct set of messages.
   $query = db_query(_privatemsg_assemble_query('list', $account, '')
     ->execute());
-  foreach($query as $thread_id => $msg) {
+  foreach($query as $msg) {
     $participants = privatemsg_thread_load($msg->thread_id);
     $participants = $participants['participants'];
     $parts = array();
@@ -119,7 +114,7 @@ function privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0){
       $participant_id = substr($participant, 5);
       $org_name =
         profile2_load_by_user($participant_id, $type_name = 'exhibitor')
-        ->field_profile['und'][0]['organisation_name']
+        ->field_profile[LANGUAGE_NONE][0]['organisation_name']
       ;
       if ($org_name) {
         $parts[] = $participant_id . ',' . $org_name;
@@ -192,7 +187,6 @@ function privatemsg_services_send(array $message){
   $body = $message['body'];
   $recipients=$message['recipients'];
   $thread_id = $message['thread_id'];
-  $form_state = array();
 
   // Make sure the message author is logged in.
   global $user;
@@ -202,8 +196,7 @@ function privatemsg_services_send(array $message){
   }
 
   // Validate at least 1 recipient has been passed in.
-
-  if ($recipients == '' && !$thread_id) {
+  if (!$recipients && !$thread_id) {
     return services_error(
       t('There are no recipients, please enter a recipient for the message.'),
       400
@@ -266,15 +259,10 @@ function privatemsg_services_send(array $message){
  *   An array of messages in a thread.
  */
 
-function privatemsg_services_get_thread($thread_id, $offset = 0){
-
-  // Return if wrong paramters are passed.
-
+function privatemsg_services_get_thread($thread_id, $offset = 0) {
   if (!$thread_id || !is_numeric($thread_id)) {
-    return services_error(t('Invalid parameters passed') , 400);
+    return services_error(t('Invalid parameters passed.') , 400);
   }
-
-  // Make sure the user is logged in.
 
   global $user;
   $account = user_load($user->uid);
