@@ -6,7 +6,7 @@
  */
 
 /**
- * Implementation of hook_perm().
+ * Implementation of hook_permission().
  */
 function privatemsg_services_permission() {
   return array(
@@ -22,56 +22,54 @@ function privatemsg_services_permission() {
 }
 
 /**
- * Implementation of hook_service().
+ * Implementation of hook_services_resources().
  */
 function privatemsg_services_services_resources() {
   return array(
     'privatemsg' => array(
-      'index'    => array(
-        'callback'             => 'privatemsg_services_get',
-        'access callback'      => 'privatemsg_services_access',
-        'args'                 => array(),
-      ),
-      'retrieve' => array(
-        'callback'         => 'privatemsg_services_get_thread',
-        'access arguments' => array(
-          'get private messages from remote'
+      'operations' => array(
+        'index'    => array(
+          'callback'        => '_privatemsg_services_get',
+          'access callback' => 'privatemsg_services_access',
+          'args'            => array(),
         ),
-        'args'             => array(
-          array(
-            'name'        => 'thread_id',
-            'type'        => 'int',
-            'description' => t(
-              'The ID of the thread that should be retrieved.'
-            ),
-            'source'      => array(
-              'path' => 0
+        'retrieve' => array(
+          'callback' => '_privatemsg_services_get_thread',
+          'access arguments' => array(
+            'get private messages from remote',
+          ),
+          'args' => array(
+            array(
+              'name'        => 'thread_id',
+              'type'        => 'int',
+              'description' => t('ID of the thread to be retrieved.'),
+              'source'      => array(
+                'path' => 0,
+              ),
             ),
           ),
         ),
-      ),
-      'create'   => array(
-        'callback'         => 'privatemsg_services_send',
-        'access arguments' => array(
-          'send private messages from remote'
-        ),
-        'args'             => array(
-          array(
-            'name'        => 'message',
-            'type'        => 'array',
-            'description' => t('A privatemsg array'),
-            'source'      => 'data',
+        'create'   => array(
+          'callback' => '_privatemsg_services_send',
+          'access arguments' => array(
+            'send private messages from remote'
           ),
+          'args' => array(
+            array(
+              'name'        => 'message',
+              'type'        => 'array',
+              'description' => t('A privatemsg array'),
+              'source'      => 'data',
+            ),
+          ),
+          'help' => t('Returns TRUE if the message sending was a success.'),
         ),
-        'help'             => t(
-          'Returns TRUE if the message sending was a success.'
-        )
       ),
     ),
   );
 }
 
-function privatemsg_services_access(){
+function privatemsg_services_access() {
   return TRUE;
 }
 
@@ -90,7 +88,7 @@ function privatemsg_services_access(){
  * @return
  *   An array of messages.
  */
-function privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0){
+function _privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0) {
   $messages = array();
 
   // User needs to be authenticated to proceed.
@@ -108,24 +106,11 @@ function privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0){
     ->execute());
   foreach($query as $msg) {
     $participants = privatemsg_thread_load($msg->thread_id);
-    $participants = $participants['participants'];
-    $parts = array();
-    foreach($participants as $participant => $usr_obj) {
-      $participant_id = substr($participant, 5);
-      $org_name =
-        profile2_load_by_user($participant_id, $type_name = 'exhibitor')
-        ->field_profile[LANGUAGE_NONE][0]['organisation_name']
-      ;
-      if ($org_name) {
-        $parts[] = $participant_id . ',' . $org_name;
-      }
-    }
+    $msg->participants = $participants['participants'];
 
-    $msg->participants = $parts;
     $messages[] = $msg;
   }
 
-  // Return messages.
   return $messages;
 }
 
@@ -135,16 +120,17 @@ function privatemsg_services_get($type = 'inbox', $offset = 0, $limit = 0){
  * @return
  *   The unread count.
  */
-function privatemsg_services_unread_count($uid = ''){
-  // User needs to be authenticated to proceed.
+function _privatemsg_services_unread_count($uid = '') {
   global $user;
+
   if (!user_is_logged_in()) {
     return services_error(t('This user is not logged in.') , 403);
   }
 
-  // If a user id other than the current user's ID is passed,
-  // validate that the authenticated user has the correct
-  // permissions to read another user's messages.
+  /**
+   * If a user id other than the current user's ID is passed, validate that the
+   * authenticated user has the correct permissions to read another user's messages.
+   */
   if (is_numeric($uid) && ($uid != $user->uid)) {
     if (user_access("read all private messages")) {
       $account = user_load($uid);
@@ -156,8 +142,6 @@ function privatemsg_services_unread_count($uid = ''){
       );
     }
   }
-
-  // Use the current user for the account.
   else {
     $account = $user;
   }
@@ -181,8 +165,7 @@ function privatemsg_services_unread_count($uid = ''){
  * @return
  *   Boolean. Return TRUE if sending the message was successful.
  */
-
-function privatemsg_services_send(array $message){
+function _privatemsg_services_send(array $message) {
   $subject = $message['subject'];
   $body = $message['body'];
   $recipients=$message['recipients'];
@@ -222,7 +205,7 @@ function privatemsg_services_send(array $message){
       'author' => $account
     ));
     if ($result['success']) {
-      return privatemsg_services_thread_load($result["message"]->thread_id);
+      return _privatemsg_services_thread_load($result["message"]->thread_id);
     }
     else {
       return services_error(implode("\n", $result['messages']['error']) , 400);
@@ -259,7 +242,7 @@ function privatemsg_services_send(array $message){
  *   An array of messages in a thread.
  */
 
-function privatemsg_services_get_thread($thread_id, $offset = 0) {
+function _privatemsg_services_get_thread($thread_id, $offset = 0) {
   if (!$thread_id || !is_numeric($thread_id)) {
     return services_error(t('Invalid parameters passed.') , 400);
   }
@@ -271,7 +254,7 @@ function privatemsg_services_get_thread($thread_id, $offset = 0) {
   }
 
   // Return the full thread.
-  return privatemsg_services_thread_load($thread_id, $account, $offset);
+  return _privatemsg_services_thread_load($thread_id, $account, $offset);
 }
 
 /**
@@ -283,25 +266,23 @@ function privatemsg_services_get_thread($thread_id, $offset = 0) {
  * @return
  *   An array of messages in a thread.
  */
-function privatemsg_services_thread_load($pmtid){
+function _privatemsg_services_thread_load($pmtid) {
   $thread = privatemsg_thread_load($pmtid);
 
   $result = array(
-    'pmtid' => $thread['thread_id'],
-    'subject' => $thread['subject'],
-    'participants' => array(),
-    'messages' => array(),
+    'pmtid'        => $thread['thread_id'],
+    'subject'      => $thread['subject'],
+    'participants' => $thread['participants'],
+    'messages'     => array(),
   );
-  foreach ($thread['participants'] as $user){
-    $result['participants'][] = $user->uid;
-  }
+
   foreach ($thread['messages'] as $message){
     $result['messages'][] = array(
-      'mid' => $message->mid,
-      'author' => $message->author->uid,
+      'mid'       => $message->mid,
+      'author'    => $message->author->uid,
       'timestamp' => $message->timestamp,
-      'body' => $message->body,
-      'is_new' => $message->is_new
+      'body'      => $message->body,
+      'is_new'    => $message->is_new,
     );
   }
 
